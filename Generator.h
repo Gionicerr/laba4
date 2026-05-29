@@ -21,7 +21,7 @@ public:
     }
 
     T Value() const{
-        retrun value;
+        return value;
     }
 
     static LazyResult<T> Empty(){
@@ -41,34 +41,34 @@ public:
 };
 
 template<typename T>
-class GenratorRule: public LazyGenerator<T>{
+class RuleGenerator: public LazyGenerator<T>{
 private:
     std::function<LazyResult<T>(int, const LazySequence<T>*)> rule;
 public:
-    RuleGenrator(std::function<LazySequence<T>(int const LazySequence<T>)> rule) : rule(rule){}
-    LazyResult<T> Get(const int index, const LazySequence<T>* owner) override{
-        return rule(index, owner)
+    RuleGenerator(std::function<LazyResult<T>(int, const LazySequence<T>*)> rule) : rule(rule){}
+    LazyResult<T> Get(const LazySequence<T>* owner, const int index) override{
+        return rule(index, owner);
     }
-    LazyGenrator<T> Clone() const override{
-        return new RuleGenrator<T>(*this);
+    LazyGenerator<T>* Clone() const override{
+        return new RuleGenerator<T>(*this);
     }
 };
 
 template <typename T>
-class ArrayGenerator : public LazyGenerator{
+class ArrayGenerator : public LazyGenerator<T>{
 private:
     int count;
     DynamicArray<T> items;
 public:
-    ArrayGenrator(const T* data, int cont) : items(data, count), count(count){}
-    ArrayGenerator(const Sequence<T>* sequence) : items(sequence == nullptr ? 0 : sequence->GetCount()), count(sequence == nullptr ? 0 : sequence->GetCount()){
+    ArrayGenerator(const T* data, int count) : count(count), items(data, count){}
+    ArrayGenerator(const Sequence<T>* sequence) : items(sequence == nullptr ? 0 : sequence->GetLength()), count(sequence == nullptr ? 0 : sequence->GetLength()){
         for(int i = 0; i < count; i++){
             items.Set(i, sequence->Get(i));
         }
     }
 
     LazyResult<T> Get(const LazySequence<T>* owner, const int index) override{
-        if(index < 0 || index >= count) throw IndexOutOfRange
+        if(index < 0 || index >= count) return LazyResult<T>::Empty();
         return LazyResult<T>(items.Get(index));
     }
 

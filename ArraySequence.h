@@ -51,11 +51,11 @@ public:
     }
 
     int GetLength() const override{
-        return items.GetSize();
+        return count;
     }
 
-    int GetCount() const{
-        return count;
+    int GetCapacity() const{
+        return items.GetSize();
     }
 
     Sequence<T>* Append(const T& item) override{
@@ -71,24 +71,30 @@ public:
 
     Sequence<T>* Prepend(const T& item) override{
         ArraySequence<T>* inst = Instance();
-        int old_size = inst->items.GetSize();
-        inst->items.Resize(old_size + 1);
-        for(int i = old_size; i > 0; i--){
+        if(inst->count == inst->GetCapacity()){
+            int new_capacity = (inst->count == 0) ? 1 : inst->count*2;
+            inst->items.Resize(new_capacity);
+        }
+        for(int i = inst->count; i > 0; i--){
             inst->items.Set(i, inst->items.Get(i - 1));
         }
         inst->items.Set(0, item);
+        inst->count++;
         return inst;
     }
 
     Sequence<T>* InsertAt(const T& item, int index) override{
         ArraySequence<T>* inst = Instance();
-        int old_size = inst->items.GetSize();
-        if(index < 0 || index > old_size) throw IndexOutOfRange();
-        inst->items.Resize(old_size + 1);
-        for(int i = old_size; i > index; i--){
+        if(index < 0 || index > inst->count) throw IndexOutOfRange();
+        if(inst->count == inst->GetCapacity()){
+            int new_capacity = (inst->count == 0) ? 1 : inst->count * 2;
+            inst->items.Resize(new_capacity);
+        }
+        for(int i = inst->count; i > index; i--){
             inst->items.Set(i, inst->items.Get(i - 1));
         }
         inst->items.Set(index, item);
+        inst->count++;
         return inst;
     }
 
@@ -100,12 +106,12 @@ public:
         for(int i = 0; i < other_len; i++){
             inst->items.Set(this_len + i, other->Get(i));
         }
+        inst->count = this_len + other_len;
         return inst;
     }
     
     Sequence<T>* GetSubsequence(const int start_index, const int end_index) override{
-        int size = GetLength();
-        if(start_index < 0 || end_index >= size || start_index > end_index) throw IndexOutOfRange();
+        if(start_index < 0 || end_index >= count || start_index > end_index) throw IndexOutOfRange();
         int length = end_index - start_index + 1;
         DynamicArray<T> new_items(length);
         for(int i = 0; i < length; i++){
@@ -113,6 +119,7 @@ public:
         }
         ArraySequence<T>* inst = Instance();
         inst->items = new_items;
+        inst->count = length;
         return inst;
     }
 };

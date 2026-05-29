@@ -13,18 +13,18 @@ template <typename T>
 class LazyCache{
 private:
     DynamicArray<T> items;
-    const int capacity = 50;
+    int capacity;
     int count;
     int first_index;
     int first_slot;
 public:
-    LazyCache() : items(capacity), capacity(capacity), count(0), first_index(0), first_slot(0){}
+    LazyCache(int capacity = 50) : items(capacity), capacity(capacity), count(0), first_index(0), first_slot(0){}
     
     bool Contains(int index) const{
         return count > 0 && index >= first_index && index < first_index + count;
     }
 
-    bool Forgotten(int index) cosnt{
+    bool Forgotten(int index) const{
         return count > 0 && index < first_index;
     }
 
@@ -35,7 +35,7 @@ public:
     T Get(int index) const{
         if(!Contains(index)) throw IndexOutOfRange();
         int shift = index - first_index;
-        int slot = (first_index + shift) % capacity;
+        int slot = (first_slot + shift) % capacity;
         return items.Get(slot);
     }
 
@@ -87,10 +87,10 @@ private:
         if(cache.Forgotten(index)) return{AccessStatus::Forgotten, T()};
         if(length_kind == LazyKind::Finite && index >= finite_length) return{AccessStatus::End, T()};
         while(generated <= index){
-            if(ended || generator == nullprt){
+            if(ended || generator == nullptr){
                 return{AccessStatus::End, T()};
             }
-            LazyResult<T> next = generator->Get(generated, this);
+            LazyResult<T> next = generator->Get(this, generated);
             if(!next.HasValue()){
                 ended = true;
                 length_kind = LazyKind::Finite;
@@ -100,18 +100,18 @@ private:
             cache.Push(generated, next.Value());
             generated++;
         }
-        if(!cache.contains(index)) return{AccessStatus::Forgotten, T()};
+        if(!cache.Contains(index)) return{AccessStatus::Forgotten, T()};
         return{AccessStatus::Value, cache.Get(index)};
     }
     AccessResult AccessOmega(int index) const{
         if(index < 0) return{AccessStatus::End, T()};
-        if(cache.Contains(index)) return{AccessStatus::Value, omega_cache.Get(index)};
-        if(cache.Forgotten(index)) return{AccessStatus::Forgotten, T()};
+        if(omega_cache.Contains(index)) return{AccessStatus::Value, omega_cache.Get(index)};
+        if(omega_cache.Forgotten(index)) return{AccessStatus::Forgotten, T()};
         while(omega_generated <= index){
-            if(omega_ended || generator == nullprt){
+            if(omega_ended || generator == nullptr){
                 return{AccessStatus::End, T()};
             }
-            LazyResult<T> next = generator->GetOmega(omega_generated, this);
+            LazyResult<T> next = generator->GetOmega(this, omega_generated);
             if(!next.HasValue()){
                 omega_ended = true;
                 return{AccessStatus::End, T()};
@@ -119,7 +119,7 @@ private:
             omega_cache.Push(omega_generated, next.Value());
             omega_generated++;
         }
-        if(!omega_cache.contains(index)) return{AccessStatus::Forgotten, T()};
+        if(!omega_cache.Contains(index)) return{AccessStatus::Forgotten, T()};
         return{AccessStatus::Value, omega_cache.Get(index)};
     }
 public:
@@ -153,27 +153,11 @@ public:
         generated(0), omega_generated(0), 
         ended(false), omega_ended(false){}
 
-    LazySequence(const LazySequence<T>& other) : cache(cache_size), 
-        omega_cache(other.cache_size), generator(other.generator == nullptr ? nullptr : other.generated->Clone()), 
+    LazySequence(const LazySequence<T>& other) : cache(other.cache), 
+        omega_cache(other.omega_cache), generator(other.generator == nullptr ? nullptr : other.generator->Clone()), 
         length_kind(other.length_kind), finite_length(other.finite_length), 
         generated(other.generated), omega_generated(other.omega_generated), 
         ended(other.ended), omega_ended(other.omega_ended){}
-
-    LazySequence<T> operator=(const LazySequence<T>& other){
-        if(this != &other){
-            delete generator;
-            cache = other.cache;
-            omega_cache = other.omega_cache;
-            generator = other.generator == nullptr ? nullptr : other.generator->Clone();
-            length_kind = other.length_kind;
-            finite_length = other.finite_length;
-            generated = other.generated;
-            omega_generated = other.omega_generated;
-            ended = other.ended;
-            omega_ended = other.omega_ended;
-        }
-        return *this;
-    }
 
     ~LazySequence(){
         delete generator;
@@ -182,7 +166,7 @@ public:
     LazyResult<T> TryGet(int index) const{
         AccessResult result = Access(index);
         if(result.status == AccessStatus::Forgotten) throw IndexOutOfRange();
-        if(result.status == AccessStatus::End) return LazyResult::Empty();
+        if(result.status == AccessStatus::End) return LazyResult<T>::Empty();
         return LazyResult<T>(result.value);
     }
 
@@ -190,13 +174,13 @@ public:
         if(omega_offset < 1) return LazyResult<T>::Empty();
         AccessResult result = AccessOmega(omega_offset - 1);
         if(result.status == AccessStatus::Forgotten) throw IndexOutOfRange();
-        if(result.status == AccessStatus::End) return LazyResult::Empty();
+        if(result.status == AccessStatus::End) return LazyResult<T>::Empty();
         return LazyResult<T>(result.value);
     }
 
     T Get(const int index) const override{
-        LazyResult<T> result = TryGet(idnex);
-        if(!result.HasValue) throw IndexOutOfRange();
+        LazyResult<T> result = TryGet(index);
+        if(!result.HasValue()) throw IndexOutOfRange();
         return result.Value();
     }
 
@@ -253,7 +237,7 @@ private:
     int count;
     LazySequence<T> parent;
 public:
-    TakeGenerator(const LazySequence<T>& parent, int count) : parent(parent), count(count){}
+    TakeGenerator(const LazySequence<T>& parent, int count) : count(count), parent(parent){}
     
     LazyResult<T> Get(const LazySequence<T>* owner, int index) override{
         if(index < 0 || index >= count) return LazyResult<T>::Empty();
@@ -266,13 +250,13 @@ public:
 };
 
 template <typename T>
-class SubSequenceGenerator : public: LazyGenerator<T>{
+class SubSequenceGenerator : public LazyGenerator<T>{
 private:
     int start_index;
     int length;
     LazySequence<T> parent;
 public:
-    SubSequenceGenerator(const LazySequence<T>* parent, int start_index, int length) : parent(parent), start_index(start_index), length(length){}
+    SubSequenceGenerator(const LazySequence<T>& parent, int start_index, int length) : start_index(start_index), length(length),  parent(parent){}
     
     LazyResult<T> Get(const LazySequence<T>* owner, int index) override{
         if(index < 0 || index >= length) return LazyResult<T>::Empty();
@@ -285,7 +269,7 @@ public:
 };
 
 template <typename T>
-class ConcatGenerator : public: LazyGenerator<T>{
+class ConcatGenerator : public LazyGenerator<T>{
 private:
     LazySequence<T> left;
     LazySequence<T> right;
@@ -306,7 +290,7 @@ public:
         }
         if(left_end == -1){
             LazyResult<T> value = left.TryGet(index);
-            if(value.HasValue){
+            if(value.HasValue()){
                 return value;
             }
             left_end = index;
@@ -321,7 +305,7 @@ public:
         return right.TryGetOmega(index + 1);
     }
 
-    LazyGenerator<T> Clone() const override{
+    LazyGenerator<T>* Clone() const override{
         return new ConcatGenerator<T>(*this);
     }
 };
@@ -331,10 +315,10 @@ class InsertSequenceGenerator : public LazyGenerator<T>{
 private:
     int position;
     LazySequence<T> base;
-    LazySeqeunce<T> inserted;
+    LazySequence<T> inserted;
     int inserted_end;
 public:
-    InsertSequenceGenerator(const LazySequence<T>& base, const LazySequence<T>& inserted, int position) : base(base), inserted(inserted), position(position), inserted_end(-1){}
+    InsertSequenceGenerator(const LazySequence<T>& base, const LazySequence<T>& inserted, int position) : position(position), base(base), inserted(inserted), inserted_end(-1){}
 
     LazyResult<T> Get(const LazySequence<T>* owner, int index) override{
         if(index < position){
@@ -352,7 +336,7 @@ public:
         }
         if(inserted_end == -1){
             LazyResult<T> value = inserted.TryGet(index - position);
-            if(value.HasValue){
+            if(value.HasValue()){
                 return value;
             }
             inserted_end = index - position;
@@ -362,7 +346,7 @@ public:
     
     LazyResult<T> GetOmega(const LazySequence<T>* owner, int index) override{
         if(inserted.GetLengthKind() == LazyKind::Infinite){
-            return inserted.TryGetOmega(position + index);
+            return base.TryGet(position + index);
         }
         return base.TryGetOmega(index + 1);
     }
@@ -387,20 +371,20 @@ LazySequence<T>* LazySequence<T>::Take(int count) const{
     
 template <typename T>
 Sequence<T>* LazySequence<T>::Append(const T& item){
-    LazySequence<T> one(&item, 1);
+    LazySequence<T> one(1, &item);
     return Concat(&one);
 }
 
 template <typename T>
 Sequence<T>* LazySequence<T>::Prepend(const T& item){
-    LazySequence<T> one(&item, 1);
+    LazySequence<T> one(1, &item);
     return one.Concat(this);
 }
 
 template <typename T>
 Sequence<T>* LazySequence<T>::InsertAt(const T& item, int index){
     if(index < 0) throw IndexOutOfRange();
-    LazySequence<T> one(&item, 1);
+    LazySequence<T> one(1, &item);
     return InsertSequenceAt(&one, index);
 }
 
@@ -408,12 +392,11 @@ template <typename T>
 Sequence<T>* LazySequence<T>::Concat(const Sequence<T>* other){
     if(other == nullptr) throw NullPointer();
     const LazySequence<T>* other_lazy = dynamic_cast<const LazySequence<T>*>(other);
-    LazySequence<T> right = other_laze == nullptr ? LazySequence<T>(other) : *other_lazy;
+    LazySequence<T> right = other_lazy == nullptr ? LazySequence<T>(other) : *other_lazy;
     LazyKind result_kind = LazyKind::Unknown;
     int result_length = -1;
-    if(length_kind == LazyKind::Finite && right.GetLengthKind() == lazyKind::Finite){
-        result_kind = LazyKind::Finite;
-        result_length = finite_length + right.GetLength();
+    if(length_kind == LazyKind::Infinite){
+        result_kind = LazyKind::Infinite;
     }
     else if(length_kind == LazyKind::Finite && right.GetLengthKind() == LazyKind::Finite){
         result_kind = LazyKind::Finite;
@@ -429,16 +412,16 @@ template <typename T>
 LazySequence<T>* LazySequence<T>::InsertSequenceAt(const Sequence<T>* sequence, int index){
     if(sequence == nullptr) throw NullPointer();
     if(index < 0) throw IndexOutOfRange();
-    of(length_kind == LazyKind::Finite && index > finite_length) throw IndexOutOfRange();
+    if(length_kind == LazyKind::Finite && index > finite_length) throw IndexOutOfRange();
     const LazySequence<T>* lazy_seq = dynamic_cast<const LazySequence<T>*>(sequence);
     LazySequence<T> inserted = lazy_seq == nullptr ? LazySequence<T>(sequence) : *lazy_seq;
-    LazyKind result_kind = LazyKInd::Unknown;
+    LazyKind result_kind = LazyKind::Unknown;
     int result_length = -1;
     if(length_kind == LazyKind::Finite && inserted.GetLengthKind() == LazyKind::Finite){
         result_kind = LazyKind::Finite;
         result_length = finite_length + inserted.GetLength();
     }
-    else if(length_kind == LazyKind::Infinite || inserted.GetLengthKind() == lazyKind::Infinite){
+    else if(length_kind == LazyKind::Infinite || inserted.GetLengthKind() == LazyKind::Infinite){
         result_kind = LazyKind::Infinite;
     }
     return new LazySequence<T>(new InsertSequenceGenerator<T>(*this, inserted, index), result_kind, result_length);

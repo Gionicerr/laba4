@@ -1,33 +1,33 @@
-TARGET_APP = main.exe
-TARGET_TEST = test
-
+# Компилятор
 CXX = g++
-CXXFLAGS = -Wall -Wextra -std=c++17
-GTEST_FLAGS = -lgtest -lgtest_main -lpthread
 
-DEPS = Sequence.h ArraySequence.h MutableArraySequence.h \
-       ImmutableArraySequence.h ListSequence.h DynamicArray.h \
-       LinkedList.h Exceptions.h Deque.h Vector.h SquareMatrix.h
+# Флаги компиляции: 
+# -std=c++17 : используем стандарт C++17
+# -Wall -Wextra : включаем все стандартные и дополнительные предупреждения
+# -pthread : требуется для Google Test
+CXXFLAGS = -std=c++17 -Wall -Wextra -pthread
 
-OBJ_APP = main.o
-OBJ_TEST = TestRun.o TestListSeq.o TestLinkList.o TestDynArr.o TestArrSeq.o \
-           TestDeque.o TestVector.o TestSquareMatr.o
+# Флаги линковки:
+# Подключаем библиотеки gtest и gtest_main
+LDFLAGS = -lgtest -lgtest_main -pthread
 
-all: $(TARGET_APP) $(TARGET_TEST)
+# Имя итогового исполняемого файла
+TARGET = run_tests
 
-$(TARGET_APP): $(OBJ_APP)
-	$(CXX) -o $@ $^ $(CXXFLAGS)
+# Исходные файлы для компиляции
+SRC = TestLazy.cpp
 
-$(TARGET_TEST): $(OBJ_TEST)
-	$(CXX) -o $@ $^ $(CXXFLAGS) $(GTEST_FLAGS)
+# Правило по умолчанию (срабатывает просто при вводе команды make)
+all: $(TARGET)
 
-%.o: %.cpp $(DEPS)
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
+# Инструкция: как собирать TARGET из SRC
+$(TARGET): $(SRC)
+	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
 
-run_tests: $(TARGET_TEST)
-	./$(TARGET_TEST)
+# Правило для быстрой компиляции и автоматического запуска тестов
+test: $(TARGET)
+	./$(TARGET)
 
+# Правило для очистки скомпилированных файлов
 clean:
-	rm -f *.o $(TARGET_APP) $(TARGET_TEST)
-
-.PHONY: all clean run_tests
+	rm -f $(TARGET)
