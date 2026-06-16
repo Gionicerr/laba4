@@ -102,10 +102,9 @@ public:
         generator(new ArrayGenerator<T>(items, count)), 
         generated(0), ended(false), length(Ordinal::Finite(count)){}
     
-    LazySequence(const Sequence<T>* sequence) : cache(50), 
-        generator(new ArrayGenerator<T>(sequence)), 
-        generated(0), ended(false), length(Ordinal::Finite(sequence->GetLength())){}
-
+    explicit LazySequence(const Sequence<T>* sequence) : cache(50), 
+        generator(new ArrayGenerator<T>(sequence)),
+        generated(0), ended(false), length(Ordinal::Finite(sequence == nullptr ? 0 : sequence->GetLength())){}
     LazySequence(LazyGenerator<T>* generator, Ordinal length = Ordinal::Omega(1,0), int cache_size = 50) :
         cache(cache_size), generator(generator), 
         generated(0), ended(false), length(length){}
@@ -383,7 +382,15 @@ LazySequence<T>* LazySequence<T>::InsertSequenceAt(const LazySequence<T>* sequen
     if(length.IsFinite() && index > length.ToInt()){
         throw IndexOutOfRange();
     }
-    Ordinal result_length = length + sequence->GetOrdinalLength();
+    Ordinal inserted_length = sequence->GetOrdinalLength();
+    Ordinal result_length;
+    if(inserted_length.IsFinite()){
+        result_length = length.IsFinite() ? Ordinal::Finite(length.ToInt() + inserted_length.ToInt()) : length;
+    }
+    else{
+        Ordinal suffix_length = length.IsFinite() ? Ordinal::Finite(length.ToInt() - index) : length;
+        result_length = inserted_length + suffix_length;
+    }
     return new LazySequence<T>(
         new InsertSequenceGenerator<T>(*this, *sequence, index),
         result_length
@@ -393,10 +400,10 @@ LazySequence<T>* LazySequence<T>::InsertSequenceAt(const LazySequence<T>* sequen
 template <typename T>
 LazySequence<T>* LazySequence<T>::InsertSequenceAt(const Sequence<T>* sequence, int index){
     if(sequence == nullptr) throw NullPointer();
-    const LazySequence<T>* lazy_seq = dynamic_cast<const LazySequence<T>*>(sequence);
-    if(lazy_seq != nullptr){
-        return InsertSequenceAt(lazy_seq, index);
+    const LazySequence<T>* lazy_sequence = dynamic_cast<const LazySequence<T>*>(sequence);
+    if(lazy_sequence != nullptr){
+        return InsertSequenceAt(lazy_sequence, index);
     }
-    LazySequence<T>* wrapped_seq(sequence);
-    return InsertSequenceAt(&wrapped_seq, index);
+    LazySequence<T> wrapped_sequence(sequence);
+    return InsertSequenceAt(&wrapped_sequence, index);
 }

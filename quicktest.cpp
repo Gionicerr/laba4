@@ -20,15 +20,16 @@ int main(){
     std::cout<<conc->Get(4)<<"\n";
     std::cout<<conc->Get(Ordinal::Omega(1,3))<<"\n";
 
-    LazySequence<int> sub = res.GetSubsequence(1,5);
-    for(int i = 0; i<sub.GetLength(); i++){
-        std::cout<<sub.Get(i)<<"\n";
+    Sequence<int>* sub = res.GetSubsequence(1,5);
+    for(int i = 0; i<sub->GetLength(); i++){
+        std::cout<<sub->Get(i)<<"\n";
     }
 
     MutableArraySequence<int> ab;
     ab.Append(1);
     ab.Append(228);
-    LazySequence<int> abcon = res.Concat(&ab);
-    std::cout<<abcon.Get(Ordinal::Omega(1,1))<<"/n";
+    LazySequence<int> abl(&ab);
+    LazySequence<int>* abcon = res.Concat(&abl);
+    std::cout<<abcon->Get(Ordinal::Omega(1,1))<<"\n";
     std::cout<<res.Get(100)<<"\n";
 }
