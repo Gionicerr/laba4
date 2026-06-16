@@ -4,6 +4,7 @@
 #include "Sequence.h"
 #include "DynamicArray.h"
 #include "Exceptions.h"
+#include "Ordinal.h"
 
 template <typename T>
 class LazySequence;
@@ -34,6 +35,9 @@ class LazyGenerator{
 public:
     virtual LazyResult<T> Get(const LazySequence<T>* owner, const int index) = 0;
     virtual LazyResult<T> GetOmega(const LazySequence<T>* owner, const int index){
+        return LazyResult<T>::Empty();
+    }
+    virtual LazyResult<T> GetOrdinal(const LazySequence<T>* owner, const Ordinal& index){
         return LazyResult<T>::Empty();
     }
     virtual LazyGenerator<T>* Clone() const = 0;
