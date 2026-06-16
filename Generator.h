@@ -65,7 +65,7 @@ private:
     DynamicArray<T> items;
 public:
     ArrayGenerator(const T* data, int count) : count(count), items(data, count){}
-    ArrayGenerator(const Sequence<T>* sequence) : items(sequence == nullptr ? 0 : sequence->GetLength()), count(sequence == nullptr ? 0 : sequence->GetLength()){
+    ArrayGenerator(const Sequence<T>* sequence) : count(sequence == nullptr ? 0 : sequence->GetLength()), items(count){
         for(int i = 0; i < count; i++){
             items.Set(i, sequence->Get(i));
         }

@@ -25,11 +25,10 @@ int main(){
         std::cout<<sub.Get(i)<<"\n";
     }
 
-    MutableArraySequence<int> ab(2);
+    MutableArraySequence<int> ab;
     ab.Append(1);
     ab.Append(228);
-    LazySequence<int> abl(&ab);
-    LazySequence<int>* abcon = res.Concat(&abl);
-    std::cout<<abcon->Get(Ordinal::Omega(1,1))<<"/n";
+    LazySequence<int> abcon = res.Concat(&ab);
+    std::cout<<abcon.Get(Ordinal::Omega(1,1))<<"/n";
     std::cout<<res.Get(100)<<"\n";
 }

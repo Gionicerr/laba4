@@ -366,6 +366,17 @@ LazySequence<T>* LazySequence<T>::Concat(const LazySequence<T>* other){
 }
 
 template <typename T>
+Sequence<T>* LazySequence<T>::Concat(const Sequence<T>* other){
+    if(other == nullptr) throw NullPointer();
+    const LazySequence<T>* lazy_other = dynamic_cast<const LazySequence<T>*>(other);
+    if(lazy_other != nullptr){
+        return Concat(lazy_other);
+    }
+    LazySequence<T> wrapped_other(other);
+    return Concat(&wrapped_other);
+}
+
+template <typename T>
 LazySequence<T>* LazySequence<T>::InsertSequenceAt(const LazySequence<T>* sequence, int index){
     if(sequence == nullptr) throw NullPointer();
     if(index < 0) throw IndexOutOfRange();
@@ -377,4 +388,15 @@ LazySequence<T>* LazySequence<T>::InsertSequenceAt(const LazySequence<T>* sequen
         new InsertSequenceGenerator<T>(*this, *sequence, index),
         result_length
     );
+}
+
+template <typename T>
+LazySequence<T>* LazySequence<T>::InsertSequenceAt(const Sequence<T>* sequence, int index){
+    if(sequence == nullptr) throw NullPointer();
+    const LazySequence<T>* lazy_seq = dynamic_cast<const LazySequence<T>*>(sequence);
+    if(lazy_seq != nullptr){
+        return InsertSequenceAt(lazy_seq, index);
+    }
+    LazySequence<T>* wrapped_seq(sequence);
+    return InsertSequenceAt(&wrapped_seq, index);
 }
