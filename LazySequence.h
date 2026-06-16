@@ -105,6 +105,7 @@ public:
     explicit LazySequence(const Sequence<T>* sequence) : cache(50), 
         generator(new ArrayGenerator<T>(sequence)),
         generated(0), ended(false), length(Ordinal::Finite(sequence == nullptr ? 0 : sequence->GetLength())){}
+
     LazySequence(LazyGenerator<T>* generator, Ordinal length = Ordinal::Omega(1,0), int cache_size = 50) :
         cache(cache_size), generator(generator), 
         generated(0), ended(false), length(length){}
@@ -261,10 +262,6 @@ public:
             }
             return right.TryGet(Ordinal::Finite(index.GetIndex() - left_length.GetIndex()));
         }
-        if(right.GetOrdinalLength().IsFinite()){
-            int offset = index.GetIndex() - left_length.GetIndex();
-            return right.TryGet(offset);
-        }
         return right.TryGet(index.MoveLeft(left_length.GetOmegaCount()));
     }
 
@@ -354,10 +351,23 @@ Sequence<T>* LazySequence<T>::InsertAt(const T& item, int index){
     return InsertSequenceAt(&one, index);
 }
 
+Ordinal AddOrdinalLengths(const Ordinal& left, const Ordinal& right){
+    if(left.IsFinite() && right.IsFinite()){
+        return Ordinal::Finite(left.ToInt() + right.ToInt());
+    }
+    if(left.IsFinite()){
+        return right;
+    }
+    if(right.IsFinite()){
+        return Ordinal::Length(left.GetOmegaCount(), left.GetIndex() + right.ToInt());
+    }
+    return Ordinal::Length(left.GetOmegaCount() + right.GetOmegaCount(), right.GetIndex());
+}
+
 template <typename T>
 LazySequence<T>* LazySequence<T>::Concat(const LazySequence<T>* other){
     if(other == nullptr) throw NullPointer();
-    Ordinal result_length = length + other->GetOrdinalLength();
+    Ordinal result_length = AddOrdinalLengths(length, other->GetOrdinalLength());
     return new LazySequence<T>(
         new ConcatGenerator<T>(*this, *other),
         result_length
@@ -389,7 +399,7 @@ LazySequence<T>* LazySequence<T>::InsertSequenceAt(const LazySequence<T>* sequen
     }
     else{
         Ordinal suffix_length = length.IsFinite() ? Ordinal::Finite(length.ToInt() - index) : length;
-        result_length = inserted_length + suffix_length;
+        result_length = AddOrdinalLengths(inserted_length, suffix_length);
     }
     return new LazySequence<T>(
         new InsertSequenceGenerator<T>(*this, *sequence, index),

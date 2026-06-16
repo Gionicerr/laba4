@@ -1,33 +1,28 @@
-# Компилятор
 CXX = g++
 
-# Флаги компиляции: 
-# -std=c++17 : используем стандарт C++17
-# -Wall -Wextra : включаем все стандартные и дополнительные предупреждения
-# -pthread : требуется для Google Test
 CXXFLAGS = -std=c++17 -Wall -Wextra -pthread
 
-# Флаги линковки:
-# Подключаем библиотеки gtest и gtest_main
-LDFLAGS = -lgtest -lgtest_main -pthread
+GTEST_LDFLAGS = -lgtest -lgtest_main -pthread
 
-# Имя итогового исполняемого файла
-TARGET = run_tests
+TEST_TARGET = run_tests
+MAIN_TARGET = main.exe
 
-# Исходные файлы для компиляции
-SRC = TestLazy.cpp
+TEST_SRC = LazyTest.cpp
+MAIN_SRC = Main.cpp
 
-# Правило по умолчанию (срабатывает просто при вводе команды make)
-all: $(TARGET)
+all: $(TEST_TARGET)
 
-# Инструкция: как собирать TARGET из SRC
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
+$(TEST_TARGET): $(TEST_SRC)
+	$(CXX) $(CXXFLAGS) $(TEST_SRC) -o $(TEST_TARGET) $(GTEST_LDFLAGS)
 
-# Правило для быстрой компиляции и автоматического запуска тестов
-test: $(TARGET)
-	./$(TARGET)
+$(MAIN_TARGET): $(MAIN_SRC)
+	$(CXX) $(CXXFLAGS) $(MAIN_SRC) -o $(MAIN_TARGET)
 
-# Правило для очистки скомпилированных файлов
+test: $(TEST_TARGET)
+	./$(TEST_TARGET)
+
+main: $(MAIN_TARGET)
+	./$(MAIN_TARGET)
+
 clean:
-	rm -f $(TARGET)
+	rm -f $(TEST_TARGET) $(CONSOLE_TARGET)
